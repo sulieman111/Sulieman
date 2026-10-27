@@ -44,6 +44,7 @@
     <label><input type="checkbox" id="stereoBox" checked> وضع النظارة (شاشتان، عين لكل جهة)</label>
     <button id="go">ابدأ</button>
     <div id="err" role="alert"></div>
+    <div style="margin-top:14px;font-size:12px;color:var(--dim)">الإصدار 2</div>
   </div>
 </div>
 
@@ -302,10 +303,25 @@ function loop(){
 $('go').addEventListener('click',async()=>{
   $('err').textContent='';stereo=$('stereoBox').checked;
   try{
-    cam.srcObject=await navigator.mediaDevices.getUserMedia({audio:false,
-      video:{facingMode:{ideal:'environment'},width:{ideal:1280},height:{ideal:720}}});
+    if(!navigator.mediaDevices||!navigator.mediaDevices.getUserMedia)throw {name:'NoMediaDevices'};
+    let stream;
+    try{stream=await navigator.mediaDevices.getUserMedia({audio:false,
+      video:{facingMode:{ideal:'environment'},width:{ideal:1280},height:{ideal:720}}});}
+    catch(e1){
+      if(e1.name==='NotAllowedError'||e1.name==='SecurityError')throw e1;
+      stream=await navigator.mediaDevices.getUserMedia({audio:false,video:true});
+    }
+    cam.srcObject=stream;
     await cam.play();
-  }catch(e){$('err').textContent='تعذر فتح الكاميرا. تأكد من الإذن ومن أن الصفحة تعمل عبر HTTPS.';return;}
+  }catch(e){
+    const n=e&&e.name,m={
+      NotAllowedError:'الإذن مرفوض. اضغط على أيقونة الإعدادات يسار الرابط ← الأذونات ← الكاميرا ← سماح، ثم حدّث الصفحة.',
+      NotReadableError:'الكاميرا مستخدمة من تطبيق آخر. أغلق التطبيقات التي تستخدمها وحاول مرة ثانية.',
+      NotFoundError:'لم يتم العثور على كاميرا في الجهاز.',
+      SecurityError:'المتصفح منع الكاميرا في هذه الصفحة. افتحها مباشرة في Chrome وليس داخل تطبيق آخر.',
+      NoMediaDevices:'الصفحة لا تعمل عبر HTTPS أو مفتوحة داخل تطبيق لا يدعم الكاميرا. افتحها في Chrome.'
+    };
+    $('err').textContent=(m[n]||'تعذر فتح الكاميرا.')+' ('+(n||'unknown')+')';return;}
   try{if(typeof DeviceOrientationEvent!=='undefined'&&DeviceOrientationEvent.requestPermission)await DeviceOrientationEvent.requestPermission();}catch(e){}
   addEventListener('deviceorientationabsolute',onOrient,true);addEventListener('deviceorientation',onOrient,true);
   try{await document.fonts.load('600 16px "IBM Plex Sans Arabic"');}catch(e){}
